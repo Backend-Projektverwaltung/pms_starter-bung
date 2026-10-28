@@ -49,6 +49,7 @@ public class AuthentikSecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/hello").authenticated()
                         .requestMatchers("/hello/**").authenticated()
+                        .requestMatchers("/projects", "/projects/**").authenticated()
                         .anyRequest().permitAll()
                 );
 
