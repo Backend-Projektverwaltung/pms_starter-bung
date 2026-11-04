@@ -18,6 +18,7 @@ import de.szut.pms.project.EmployeeQualificationNotFoundException;
 import de.szut.pms.project.ProjectAssignmentConflictException;
 import de.szut.pms.project.ProjectNotFoundException;
 import de.szut.pms.project.ProjectEmployeeNotFoundException;
+import de.szut.pms.customer.CustomerNotFoundException;
 
 /**
  * Zentrale Übersetzung von Ausnahmen in HTTP-Antworten nach RFC 9457
@@ -45,6 +46,16 @@ public class ApiExceptionHandler {
         problem.setTitle("Projekt nicht gefunden");
         problem.setProperty("code", "PROJECT_NOT_FOUND");
         return problem;
+    }
+
+    @ExceptionHandler(CustomerNotFoundException.class)
+    public ProblemDetail handleCustomerNotFound(CustomerNotFoundException ex) {
+        return problem(
+                HttpStatus.NOT_FOUND,
+                "Kunde nicht gefunden",
+                ex.getMessage(),
+                "CUSTOMER_NOT_FOUND"
+        );
     }
 
     @ExceptionHandler(EmployeeNotFoundException.class)

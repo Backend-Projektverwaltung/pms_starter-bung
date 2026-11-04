@@ -13,23 +13,36 @@ import de.szut.pms.project.ProjectDtos.ProjectResponse;
 import de.szut.pms.project.ProjectDtos.EmployeeAssignmentRequest;
 import de.szut.pms.project.ProjectDtos.ProjectEmployeesResponse;
 import de.szut.pms.project.ProjectDtos.EmployeeProjectResponse;
+import de.szut.pms.customer.CustomerClient;
+import de.szut.pms.customer.CustomerNotFoundException;
+import de.szut.pms.project.ProjectDtos.EmployeeProjectsResponse;
 
 @Service
 public class ProjectService {
 
     private final ProjectRepository repository;
     private final EmployeeClient employeeClient;
+    private final CustomerClient customerClient;
 
-    public ProjectService(ProjectRepository repository, EmployeeClient employeeClient) {
+    public ProjectService(
+            ProjectRepository repository,
+            EmployeeClient employeeClient,
+            CustomerClient customerClient) {
+
         this.repository = repository;
         this.employeeClient = employeeClient;
+        this.customerClient = customerClient;
     }
 
     @Transactional
     public ProjectResponse create(ProjectRequest request) {
         validateDates(request);
+        validateCustomer(request);
+        validateResponsibleEmployee(request);
+
         ProjectEntity entity = new ProjectEntity();
         copy(request, entity);
+
         return toResponse(repository.save(entity));
     }
 
@@ -45,9 +58,14 @@ public class ProjectService {
 
     @Transactional
     public ProjectResponse update(Long id, ProjectRequest request) {
-        validateDates(request);
         ProjectEntity entity = findEntity(id);
+
+        validateDates(request);
+        validateResponsibleEmployee(request);
+        validateCustomer(request);
+
         copy(request, entity);
+
         return toResponse(repository.save(entity));
     }
 
@@ -104,21 +122,28 @@ public class ProjectService {
     }
 
     @Transactional(readOnly = true)
-    public List<EmployeeProjectResponse> findProjectsByEmployeeId(Long employeeId) {
+    public EmployeeProjectsResponse findProjectsByEmployeeId(Long employeeId) {
+
         employeeClient.findById(employeeId);
-        return repository.findByEmployeesEmployeeId(employeeId).stream()
-                .map(project -> new EmployeeProjectResponse(
-                        project.getId(),
-                        project.getName(),
-                        project.getStartDate(),
-                        project.getEndDate(),
-                        project.getEmployees().stream()
-                                .filter(employee -> employee.getEmployeeId().equals(employeeId))
-                                .findFirst()
-                                .orElseThrow(() -> new IllegalStateException(
-                                        "Die Projektzuordnung ist inkonsistent."))
-                                .getQualification()))
-                .toList();
+
+        List<EmployeeProjectResponse> projects =
+                repository.findByEmployeesEmployeeId(employeeId).stream()
+                        .map(project -> new EmployeeProjectResponse(
+                                project.getId(),
+                                project.getName(),
+                                project.getStartDate(),
+                                project.getEndDate(),
+                                project.getEmployees().stream()
+                                        .filter(employee ->
+                                                employee.getEmployeeId().equals(employeeId))
+                                        .findFirst()
+                                        .orElseThrow(() ->
+                                                new IllegalStateException(
+                                                        "Die Projektzuordnung ist inkonsistent."))
+                                        .getQualification()))
+                        .toList();
+
+        return new EmployeeProjectsResponse(employeeId, projects);
     }
 
     @Transactional
@@ -141,6 +166,16 @@ public class ProjectService {
 
     private ProjectEntity findEntity(Long id) {
         return repository.findById(id).orElseThrow(() -> new ProjectNotFoundException(id));
+    }
+
+    private void validateResponsibleEmployee(ProjectRequest request) {
+        employeeClient.findById(request.responsibleEmployeeId());
+    }
+
+    private void validateCustomer(ProjectRequest request) {
+        if (!customerClient.existsById(request.customerId())) {
+            throw new CustomerNotFoundException(request.customerId());
+        }
     }
 
     private void validateDates(ProjectRequest request) {

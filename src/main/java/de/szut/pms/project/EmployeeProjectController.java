@@ -1,7 +1,5 @@
 package de.szut.pms.project;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,7 +19,11 @@ public class EmployeeProjectController {
     }
 
     @GetMapping
-    public ResponseEntity<List<EmployeeProjectResponse>> findProjects(@PathVariable Long employeeId) {
-        return ResponseEntity.ok(service.findProjectsByEmployeeId(employeeId));
+    public ResponseEntity<ProjectDtos.EmployeeProjectsResponse> findProjects(
+            @PathVariable Long employeeId) {
+
+        return ResponseEntity.ok(
+                service.findProjectsByEmployeeId(employeeId)
+        );
     }
 }

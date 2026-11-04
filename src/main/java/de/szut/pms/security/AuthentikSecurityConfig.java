@@ -14,6 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 
 import java.util.List;
 
@@ -30,10 +31,20 @@ public class AuthentikSecurityConfig {
 
     @Value("${authentik.jwk-set-uri}")
     private String jwkSetUri;
+    @Value("${authentik.issuer-uri}")
+    private String issuerUri;
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+
+        NimbusJwtDecoder decoder =
+                NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+
+        decoder.setJwtValidator(
+                JwtValidators.createDefaultWithIssuer(issuerUri)
+        );
+
+        return decoder;
     }
 
     @Bean
@@ -47,8 +58,6 @@ public class AuthentikSecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/hello").authenticated()
-                        .requestMatchers("/hello/**").authenticated()
                         .requestMatchers("/projects", "/projects/**").authenticated()
                         .requestMatchers("/employees/**").authenticated()
                         .anyRequest().permitAll()

@@ -10,8 +10,8 @@ import org.junit.jupiter.api.Test;
 import de.szut.pms.employee.EmployeeClient;
 import de.szut.pms.employee.EmployeeNotFoundException;
 import de.szut.pms.project.ProjectDtos.EmployeeAssignmentRequest;
-import de.szut.pms.project.ProjectDtos.EmployeeProjectResponse;
 import de.szut.pms.project.ProjectDtos.ProjectResponse;
+import de.szut.pms.customer.CustomerClient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,11 +24,17 @@ class ProjectServiceTest {
 
     private final ProjectRepository repository = mock(ProjectRepository.class);
     private final EmployeeClient employeeClient = mock(EmployeeClient.class);
+    private final CustomerClient customerClient = mock(CustomerClient.class);
+
     private ProjectService service;
 
     @BeforeEach
     void setUp() {
-        service = new ProjectService(repository, employeeClient);
+        service = new ProjectService(
+                repository,
+                employeeClient,
+                customerClient
+        );
     }
 
     @Test
@@ -86,9 +92,10 @@ class ProjectServiceTest {
         when(employeeClient.findById(4L)).thenReturn(employee(4L, "Java"));
         when(repository.findByEmployeesEmployeeId(4L)).thenReturn(List.of());
 
-        List<EmployeeProjectResponse> projects = service.findProjectsByEmployeeId(4L);
+        ProjectDtos.EmployeeProjectsResponse response = service.findProjectsByEmployeeId(4L);
 
-        assertEquals(List.of(), projects);
+        assertEquals(4L, response.employeeId());
+        assertEquals(List.of(), response.projects());
     }
 
     @Test

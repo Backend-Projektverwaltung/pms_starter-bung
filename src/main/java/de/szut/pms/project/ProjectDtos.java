@@ -13,7 +13,7 @@ public final class ProjectDtos {
             @NotBlank String name,
             @NotNull Long responsibleEmployeeId,
             @NotNull Long customerId,
-            @NotBlank String customerContactName,
+            String customerContactName,
             String comment,
             @NotNull LocalDate startDate,
             LocalDate endDate) {
@@ -51,5 +51,10 @@ public final class ProjectDtos {
             LocalDate startDate,
             LocalDate endDate,
             String qualification) {
+    }
+
+    public record EmployeeProjectsResponse(
+            Long employeeId,
+            List<EmployeeProjectResponse> projects) {
     }
 }
