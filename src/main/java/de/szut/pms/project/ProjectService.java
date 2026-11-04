@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import de.szut.pms.project.ProjectDtos.ProjectRequest;
 import de.szut.pms.project.ProjectDtos.ProjectResponse;
+import de.szut.pms.project.ProjectDtos.EmployeeAssignmentRequest;
+import de.szut.pms.project.ProjectDtos.ProjectEmployeesResponse;
 
 @Service
 public class ProjectService {
@@ -47,6 +49,56 @@ public class ProjectService {
     public void deleteById(Long id) {
         ProjectEntity entity = findEntity(id);
         repository.delete(entity);
+    }
+
+    @Transactional
+    public ProjectResponse assignEmployee(Long projectId, EmployeeAssignmentRequest request) {
+        ProjectEntity project = findEntity(projectId);
+        boolean alreadyAssigned = project.getEmployees().stream()
+                .anyMatch(employee -> employee.getEmployeeId().equals(request.employeeId()));
+        if (alreadyAssigned) {
+            throw new IllegalArgumentException("Der Mitarbeiter ist dem Projekt bereits zugeordnet.");
+        }
+
+        boolean overlaps = repository.findByEmployeesEmployeeId(request.employeeId()).stream()
+                .filter(other -> !other.getId().equals(projectId))
+                .anyMatch(other -> periodsOverlap(project, other));
+        if (overlaps) {
+            throw new IllegalArgumentException("Der Mitarbeiter ist im Projektzeitraum bereits einem anderen Projekt zugeordnet.");
+        }
+
+        ProjectEmployeeEntity assignment = new ProjectEmployeeEntity();
+        assignment.setProject(project);
+        assignment.setEmployeeId(request.employeeId());
+        assignment.setQualification(request.qualification());
+        project.getEmployees().add(assignment);
+        return toResponse(repository.save(project));
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectEmployeesResponse findEmployees(Long projectId) {
+        ProjectEntity project = findEntity(projectId);
+        return new ProjectEmployeesResponse(project.getId(), project.getName(), project.getEmployees().stream()
+                .map(employee -> new ProjectDtos.EmployeeResponse(employee.getEmployeeId(), employee.getQualification()))
+                .toList());
+    }
+
+    @Transactional
+    public void removeEmployee(Long projectId, Long employeeId) {
+        ProjectEntity project = findEntity(projectId);
+        boolean removed = project.getEmployees().removeIf(employee -> employee.getEmployeeId().equals(employeeId));
+        if (!removed) {
+            throw new IllegalArgumentException("Der Mitarbeiter ist dem Projekt nicht zugeordnet.");
+        }
+        repository.save(project);
+    }
+
+    private boolean periodsOverlap(ProjectEntity first, ProjectEntity second) {
+        boolean firstEndsAfterSecondStarts = first.getEndDate() == null
+                || !first.getEndDate().isBefore(second.getStartDate());
+        boolean secondEndsAfterFirstStarts = second.getEndDate() == null
+                || !second.getEndDate().isBefore(first.getStartDate());
+        return firstEndsAfterSecondStarts && secondEndsAfterFirstStarts;
     }
 
     private ProjectEntity findEntity(Long id) {

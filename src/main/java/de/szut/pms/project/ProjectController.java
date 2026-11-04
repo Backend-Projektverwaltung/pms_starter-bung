@@ -16,6 +16,8 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import de.szut.pms.project.ProjectDtos.ProjectRequest;
 import de.szut.pms.project.ProjectDtos.ProjectResponse;
+import de.szut.pms.project.ProjectDtos.EmployeeAssignmentRequest;
+import de.szut.pms.project.ProjectDtos.ProjectEmployeesResponse;
 import jakarta.validation.Valid;
 
 @RestController
@@ -55,6 +57,23 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{projectId}/employees")
+    public ResponseEntity<ProjectResponse> assignEmployee(@PathVariable Long projectId,
+                                                           @RequestBody @Valid EmployeeAssignmentRequest request) {
+        return ResponseEntity.ok(service.assignEmployee(projectId, request));
+    }
+
+    @GetMapping("/{projectId}/employees")
+    public ResponseEntity<ProjectEmployeesResponse> findEmployees(@PathVariable Long projectId) {
+        return ResponseEntity.ok(service.findEmployees(projectId));
+    }
+
+    @DeleteMapping("/{projectId}/employees/{employeeId}")
+    public ResponseEntity<Void> removeEmployee(@PathVariable Long projectId, @PathVariable Long employeeId) {
+        service.removeEmployee(projectId, employeeId);
         return ResponseEntity.noContent().build();
     }
 }

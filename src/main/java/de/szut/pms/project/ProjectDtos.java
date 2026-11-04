@@ -33,4 +33,15 @@ public final class ProjectDtos {
 
     public record EmployeeResponse(Long employeeId, String qualification) {
     }
+
+    public record EmployeeAssignmentRequest(
+            @NotNull Long employeeId,
+            @NotBlank String qualification) {
+    }
+
+    public record ProjectEmployeesResponse(
+            Long projectId,
+            String projectName,
+            List<EmployeeResponse> employees) {
+    }
 }
