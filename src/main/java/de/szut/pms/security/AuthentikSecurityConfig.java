@@ -50,6 +50,7 @@ public class AuthentikSecurityConfig {
                         .requestMatchers("/hello").authenticated()
                         .requestMatchers("/hello/**").authenticated()
                         .requestMatchers("/projects", "/projects/**").authenticated()
+                        .requestMatchers("/employees/**").authenticated()
                         .anyRequest().permitAll()
                 );
 

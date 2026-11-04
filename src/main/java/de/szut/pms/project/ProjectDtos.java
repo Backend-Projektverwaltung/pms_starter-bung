@@ -44,4 +44,12 @@ public final class ProjectDtos {
             String projectName,
             List<EmployeeResponse> employees) {
     }
+
+    public record EmployeeProjectResponse(
+            Long projectId,
+            String projectName,
+            LocalDate startDate,
+            LocalDate endDate,
+            String qualification) {
+    }
 }

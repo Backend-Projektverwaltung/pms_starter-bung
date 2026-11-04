@@ -5,18 +5,24 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import de.szut.pms.employee.EmployeeClient;
+import de.szut.pms.employee.EmployeeClient.EmployeeResponse;
+import de.szut.pms.employee.EmployeeClient.SkillResponse;
 import de.szut.pms.project.ProjectDtos.ProjectRequest;
 import de.szut.pms.project.ProjectDtos.ProjectResponse;
 import de.szut.pms.project.ProjectDtos.EmployeeAssignmentRequest;
 import de.szut.pms.project.ProjectDtos.ProjectEmployeesResponse;
+import de.szut.pms.project.ProjectDtos.EmployeeProjectResponse;
 
 @Service
 public class ProjectService {
 
     private final ProjectRepository repository;
+    private final EmployeeClient employeeClient;
 
-    public ProjectService(ProjectRepository repository) {
+    public ProjectService(ProjectRepository repository, EmployeeClient employeeClient) {
         this.repository = repository;
+        this.employeeClient = employeeClient;
     }
 
     @Transactional
@@ -54,23 +60,37 @@ public class ProjectService {
     @Transactional
     public ProjectResponse assignEmployee(Long projectId, EmployeeAssignmentRequest request) {
         ProjectEntity project = findEntity(projectId);
+        EmployeeResponse validatedEmployee = employeeClient.findById(request.employeeId());
+        List<SkillResponse> skills = validatedEmployee.skillSet() == null
+                ? List.of()
+                : validatedEmployee.skillSet();
+        SkillResponse qualification = skills.stream()
+                .filter(skill -> skill != null)
+                .filter(skill -> skill.skill() != null
+                        && skill.skill().equalsIgnoreCase(request.qualification().trim()))
+                .findFirst()
+                .orElseThrow(() -> new EmployeeQualificationNotFoundException(
+                        request.qualification(), request.employeeId()));
+
         boolean alreadyAssigned = project.getEmployees().stream()
                 .anyMatch(employee -> employee.getEmployeeId().equals(request.employeeId()));
         if (alreadyAssigned) {
-            throw new IllegalArgumentException("Der Mitarbeiter ist dem Projekt bereits zugeordnet.");
+            throw new ProjectAssignmentConflictException(
+                    "Der Mitarbeiter ist dem Projekt bereits zugeordnet.");
         }
 
         boolean overlaps = repository.findByEmployeesEmployeeId(request.employeeId()).stream()
                 .filter(other -> !other.getId().equals(projectId))
                 .anyMatch(other -> periodsOverlap(project, other));
         if (overlaps) {
-            throw new IllegalArgumentException("Der Mitarbeiter ist im Projektzeitraum bereits einem anderen Projekt zugeordnet.");
+            throw new ProjectAssignmentConflictException(
+                    "Der Mitarbeiter ist im Projektzeitraum bereits einem anderen Projekt zugeordnet.");
         }
 
         ProjectEmployeeEntity assignment = new ProjectEmployeeEntity();
         assignment.setProject(project);
         assignment.setEmployeeId(request.employeeId());
-        assignment.setQualification(request.qualification());
+        assignment.setQualification(qualification.skill());
         project.getEmployees().add(assignment);
         return toResponse(repository.save(project));
     }
@@ -83,12 +103,30 @@ public class ProjectService {
                 .toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<EmployeeProjectResponse> findProjectsByEmployeeId(Long employeeId) {
+        employeeClient.findById(employeeId);
+        return repository.findByEmployeesEmployeeId(employeeId).stream()
+                .map(project -> new EmployeeProjectResponse(
+                        project.getId(),
+                        project.getName(),
+                        project.getStartDate(),
+                        project.getEndDate(),
+                        project.getEmployees().stream()
+                                .filter(employee -> employee.getEmployeeId().equals(employeeId))
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "Die Projektzuordnung ist inkonsistent."))
+                                .getQualification()))
+                .toList();
+    }
+
     @Transactional
     public void removeEmployee(Long projectId, Long employeeId) {
         ProjectEntity project = findEntity(projectId);
         boolean removed = project.getEmployees().removeIf(employee -> employee.getEmployeeId().equals(employeeId));
         if (!removed) {
-            throw new IllegalArgumentException("Der Mitarbeiter ist dem Projekt nicht zugeordnet.");
+            throw new ProjectEmployeeNotFoundException(employeeId, projectId);
         }
         repository.save(project);
     }

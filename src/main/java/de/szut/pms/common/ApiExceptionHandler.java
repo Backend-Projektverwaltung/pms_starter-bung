@@ -11,8 +11,13 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import de.szut.pms.employee.EmployeeNotFoundException;
+import de.szut.pms.employee.EmployeeServiceException;
 import de.szut.pms.hello.HelloNotFoundException;
+import de.szut.pms.project.EmployeeQualificationNotFoundException;
+import de.szut.pms.project.ProjectAssignmentConflictException;
 import de.szut.pms.project.ProjectNotFoundException;
+import de.szut.pms.project.ProjectEmployeeNotFoundException;
 
 /**
  * Zentrale Übersetzung von Ausnahmen in HTTP-Antworten nach RFC 9457
@@ -42,6 +47,36 @@ public class ApiExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(EmployeeNotFoundException.class)
+    public ProblemDetail handleEmployeeNotFound(EmployeeNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "Mitarbeiter nicht gefunden", ex.getMessage(),
+                "EMPLOYEE_NOT_FOUND");
+    }
+
+    @ExceptionHandler(ProjectEmployeeNotFoundException.class)
+    public ProblemDetail handleProjectEmployeeNotFound(ProjectEmployeeNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, "Projektzuordnung nicht gefunden", ex.getMessage(),
+                "PROJECT_EMPLOYEE_NOT_FOUND");
+    }
+
+    @ExceptionHandler(EmployeeQualificationNotFoundException.class)
+    public ProblemDetail handleEmployeeQualificationNotFound(EmployeeQualificationNotFoundException ex) {
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Qualifikation nicht vorhanden", ex.getMessage(),
+                "EMPLOYEE_QUALIFICATION_NOT_FOUND");
+    }
+
+    @ExceptionHandler(ProjectAssignmentConflictException.class)
+    public ProblemDetail handleProjectAssignmentConflict(ProjectAssignmentConflictException ex) {
+        return problem(HttpStatus.CONFLICT, "Projektzuordnung nicht möglich", ex.getMessage(),
+                "PROJECT_ASSIGNMENT_CONFLICT");
+    }
+
+    @ExceptionHandler(EmployeeServiceException.class)
+    public ProblemDetail handleEmployeeServiceFailure(EmployeeServiceException ex) {
+        return problem(ex.getStatus(), "Employee-Service nicht verfügbar", ex.getMessage(),
+                "EMPLOYEE_SERVICE_FAILURE");
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
@@ -59,6 +94,13 @@ public class ApiExceptionHandler {
                 HttpStatus.BAD_REQUEST, "Die Anfrage enthält ungültige Felder.");
         problem.setTitle("Ungültige Eingabe");
         problem.setProperty("errors", errors);
+        return problem;
+    }
+
+    private ProblemDetail problem(HttpStatus status, String title, String detail, String code) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setTitle(title);
+        problem.setProperty("code", code);
         return problem;
     }
 }
